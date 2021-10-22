@@ -1,2 +1,8 @@
 *.class
 *.log
+.idea/
+*.iml
+target/
+*.jar
+.DS_Store
+*.csv
