@@ -4,14 +4,16 @@ set -xueo pipefail
 # 预定义参数
 base_dir=$(pwd)
 scripts_dir=$(cd "$(dirname "$0")";pwd)
+version=$(date "+%Y_%m_%d_%H%M%S")
 
 # 项目参数
-queue
-output_hdfs
+spark_submit_queue=""
+output_hdfs="tmp/${version}/001"
 error_msg=demo-spark
-mail_list=demo@demo
+mail_list=demo@demo.com
 jar_dir=${base_dir}/target/demo-spark-1.0-SNAPSHOT-jar-with-dependencies.jar
 class=demo.App
+spark_conf_path=${scripts_dir}/spark-env.sh
 
 # 是否覆盖已有结果，默认覆盖
 is_overwrite=1
@@ -23,7 +25,7 @@ BEGIN_TIME=$(date +%s)
 invoke_cmd="sh $0 $@"
 printf "\033[32m[DEBUG] 任务开始: %s | %s \033[0m\n" "$(date +%Y-%m-%d_%H:%M:%S)" "${invoke_cmd}"
 
-python -c "print('\n\n\n' + '='*40 + '\n' + '='*40 + '\n' + '='*9 + ' 代码改动需要重新编译 ' + '='*9 + '\n' + '='*40 + '\n' + '='*40 + '\n\n\n')"
+python -c "print('\n\n\n' + '='*40 + '\n' + '='*40 + '\n' + '='*9 + ' 代码改动记得重新编译 ' + '='*9 + '\n' + '='*40 + '\n' + '='*40 + '\n\n\n')"
 
 # 退出处理
 exit_program() {
@@ -44,6 +46,17 @@ exit_program() {
 }
 
 trap "exit_program" 0
+
+
+sh scripts/get_jar.sh
+
+
+if [ ! -f ${spark_conf_path} ];
+then
+    hdfs dfs -get online/env/spark_conf/spark-env.sh ${spark_conf_path}
+fi
+source ${spark_conf_path}
+
 
 # 获取日期参数
 if [[ $# -lt 1 ]]; then
@@ -77,10 +90,9 @@ set -e
 hdfs dfs -rm -r -f ${output_hdfs}
 
 spark-submit \
-    --queue ${queue} \
+    --queue ${spark_submit_queue} \
     --conf spark.dynamicAllocation.minExecutors=10 \
     --conf spark.dynamicAllocation.maxExecutors=200 \
-    --conf spark.akka.frameSize=100 \
     --conf spark.executor.cores=4 \
     --conf spark.default.parallism=1024 \
     --executor-memory 12g \
